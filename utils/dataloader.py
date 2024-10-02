@@ -9,7 +9,7 @@ class DataLoader:
             path (root path): Path to folder containing all classes folders
             mode (str): 'train' or 'test'
         """
-        self.path = path
+        self.path = os.path.join(path, mode)
         self.mode = mode
         self.paths = []
         self.labels = []
