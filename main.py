@@ -1,5 +1,5 @@
 import os
-from utils.transform import Composer, ObjectCentricCropping, HairRemoval
+from Challenge1.utils.transforms import Composer, ObjectCentricCropping, HairRemoval
 
 from utils.dataloader import DataLoader
 

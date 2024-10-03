@@ -1,4 +1,6 @@
 import cv2
+import numpy as np
+from sklearn.cluster import KMeans
 
 class Composer:
     def __init__(self, transforms):
@@ -101,3 +103,46 @@ class HairRemoval:
         # Inpaint the original image using the hair mask to remove the hair
         result = cv2.inpaint(img, closing, inpaintRadius=self.inpaint_radius, flags=cv2.INPAINT_TELEA)
         return result
+    
+class KMeansSegmentation:
+    def __init__(self, k=3, max_iter=100, random_state=42):
+        """
+        Initializes the KMeansSegmentation class with parameters for clustering.
+        
+        Args:
+            k: Number of clusters for KMeans segmentation (default: 3)
+            max_iter: Maximum number of iterations for the KMeans algorithm (default: 100)
+            random_state: Random state for reproducibility (default: 42)
+        """
+        self.k = k
+        self.max_iter = max_iter
+        self.random_state = random_state
+
+    def __call__(self, img):
+        """
+        Segments the image using KMeans clustering and displays the result.
+        Args:
+            img (np array): Image to segment.
+        Return: 
+            segmented_image: Segmented image.
+        """
+        # Load image
+        original_shape = img.shape
+
+        # Convert image to a 2D array of pixels (flatten)
+        pixel_values = img.reshape((-1, 3))  # Reshape to 2D array (rows = pixels, cols = RGB)
+        pixel_values = np.float32(pixel_values)  # Convert to float32 for KMeans
+
+        # Apply KMeans clustering
+        kmeans = KMeans(n_clusters=self.k, max_iter=self.max_iter, random_state=self.random_state)
+        kmeans.fit(pixel_values)
+        
+        # Get the cluster centers (colors) and labels (which cluster each pixel belongs to)
+        centers = np.uint8(kmeans.cluster_centers_)  # Convert to uint8 for displaying
+        labels = kmeans.labels_  # Each pixel's assigned cluster
+
+        # Map each pixel to the color of its corresponding cluster center
+        segmented_image = centers[labels.flatten()]
+        segmented_image = segmented_image.reshape(original_shape)  # Reshape to the original image shape
+
+        return segmented_image
