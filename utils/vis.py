@@ -94,7 +94,7 @@ class MatplotlibVisualizer:
         
         
     def show_image_and_histogram(self, img, hist, image_title='Image', hist_title='Histogram', 
-                                 x_label='Bins', y_label='Number of Pixels', color_map='gray'):
+                                x_label='Bins', y_label='Number of Pixels', color_map='gray'):
         """
         Show an image and its corresponding histogram in one line.
 

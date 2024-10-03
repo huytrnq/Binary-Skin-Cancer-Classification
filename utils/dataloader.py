@@ -2,18 +2,20 @@ import os
 import cv2
 
 class DataLoader:
-    def __init__(self, path, mode):
+    def __init__(self, path, mode, transforms=None):
         """DataLoader Initialization
 
         Args:
             path (root path): Path to folder containing all classes folders
             mode (str): 'train' or 'test'
+            transforms (callable, optional): Optional transforms to be applied on a sample.
         """
         self.path = os.path.join(path, mode)
         self.mode = mode
         self.paths = []
         self.labels = []
         self.classes = []
+        self.transforms = transforms
         
         if os.path.exists(path):
             self.parse_data()
@@ -55,6 +57,8 @@ class DataLoader:
         """
         if self.idx < len(self):
             img = cv2.imread(self.paths[self.idx])
+            if self.transforms is not None:
+                img = self.transforms(img)
             label = self.labels[self.idx]
             self.idx += 1
             return img, label
