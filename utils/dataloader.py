@@ -2,13 +2,14 @@ import os
 import cv2
 
 class DataLoader:
-    def __init__(self, path, mode, transforms=None):
+    def __init__(self, path, mode, transforms=None, ignore_folders=[]):
         """DataLoader Initialization
 
         Args:
             path (root path): Path to folder containing all classes folders
             mode (str): 'train' or 'test'
             transforms (callable, optional): Optional transforms to be applied on a sample.
+            ignore_folders (list, optional): List of folders to ignore. Defaults to [].
         """
         self.path = os.path.join(path, mode)
         self.mode = mode
@@ -16,6 +17,7 @@ class DataLoader:
         self.labels = []
         self.classes = []
         self.transforms = transforms
+        self.ignore_folders = ignore_folders
         
         if os.path.exists(path):
             self.parse_data()
@@ -25,9 +27,13 @@ class DataLoader:
         """Load data from path
         """
         self.classes = os.listdir(self.path)
-        for root, dirs, files in os.walk(self.path):
+        for folder in self.ignore_folders:
+            if folder in self.classes:
+                self.classes.remove(folder)
+                
+        for root, dirs, files in os.walk(self.path):                
             for file in files:
-                if file.endswith('.jpg'):
+                if file.endswith('.jpg') and os.path.basename(os.path.dirname(root)) not in self.ignore_folders:
                     self.paths.append(os.path.join(root, file))
                     self.labels.append(self.classes.index(os.path.basename(root)))
         
@@ -60,8 +66,9 @@ class DataLoader:
             if self.transforms is not None:
                 img = self.transforms(img)
             label = self.labels[self.idx]
+            path =  self.paths[self.idx]
             self.idx += 1
-            return img, label
+            return img, label, path
         else:
             raise StopIteration
     
