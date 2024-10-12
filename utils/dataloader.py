@@ -1,14 +1,16 @@
 import os
 import cv2
+from random import shuffle
 
 class DataLoader:
-    def __init__(self, path, mode, transforms=None, ignore_folders=[]):
+    def __init__(self, path, mode, transforms=None, shuffle=False, ignore_folders=[]):
         """DataLoader Initialization
 
         Args:
             path (root path): Path to folder containing all classes folders
             mode (str): 'train' or 'test'
             transforms (callable, optional): Optional transforms to be applied on a sample.
+            shuffle (bool, optional): Shuffle data. Defaults to False.
             ignore_folders (list, optional): List of folders to ignore. Defaults to [].
         """
         self.path = os.path.join(path, mode)
@@ -21,6 +23,12 @@ class DataLoader:
         
         if os.path.exists(path):
             self.parse_data()
+            
+        if shuffle:
+            indices = list(range(len(self)))
+            shuffle(indices)
+            self.paths = [self.paths[i] for i in indices]
+            self.labels = [self.labels[i] for i in indices]
             
     
     def parse_data(self):
