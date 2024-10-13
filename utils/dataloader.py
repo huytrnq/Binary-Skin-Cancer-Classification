@@ -1,6 +1,6 @@
 import os
 import cv2
-from random import shuffle
+import random
 
 class DataLoader:
     def __init__(self, path, mode, transforms=None, shuffle=False, ignore_folders=[]):
@@ -26,7 +26,7 @@ class DataLoader:
             
         if shuffle:
             indices = list(range(len(self)))
-            shuffle(indices)
+            random.shuffle(indices)
             self.paths = [self.paths[i] for i in indices]
             self.labels = [self.labels[i] for i in indices]
             

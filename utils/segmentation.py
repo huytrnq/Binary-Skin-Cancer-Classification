@@ -112,3 +112,46 @@ class ThresholdingSegmentation:
                 gray, threshold_value, self.max_value, self.threshold_type)
 
         return segmented_image
+    
+    
+class CannyEdgeDetector:
+    def __init__(self, low_threshold=50, high_threshold=150, aperture_size=3, L2gradient=False):
+        """
+        Initializes the CannyEdgeDetector with specified parameters.
+
+        :param low_threshold: First threshold for the hysteresis procedure.
+        :param high_threshold: Second threshold for the hysteresis procedure.
+        :param aperture_size: Aperture size for the Sobel operator (must be odd and between 3 and 7).
+        :param L2gradient: Boolean indicating whether to use a more accurate L2 norm.
+        """
+        self.low_threshold = low_threshold
+        self.high_threshold = high_threshold
+        self.aperture_size = aperture_size
+        self.L2gradient = L2gradient
+
+    def __call__(self, image):
+        """
+        Detects edges in the input image using the Canny algorithm.
+
+        :param image: Input image (grayscale or color).
+        :return: Edge-detected image.
+        """
+        # Convert to grayscale if the image is in color
+        if len(image.shape) == 3:
+            gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        else:
+            gray_image = image
+
+        # Apply Gaussian Blur to reduce noise
+        blurred_image = cv2.GaussianBlur(gray_image, (5, 5), 1.4)
+
+        # Perform Canny edge detection
+        edges = cv2.Canny(
+            blurred_image,
+            self.low_threshold,
+            self.high_threshold,
+            apertureSize=self.aperture_size,
+            L2gradient=self.L2gradient
+        )
+
+        return edges
