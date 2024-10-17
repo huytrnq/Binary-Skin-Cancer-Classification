@@ -1,9 +1,13 @@
 import os
 import cv2
 import random
+from collections import Counter
+
+import numpy as np
+from sklearn.utils import resample
 
 class DataLoader:
-    def __init__(self, path, mode, transforms=None, shuffle=False, ignore_folders=[]):
+    def __init__(self, path, mode, transforms=None, shuffle=False, ignore_folders=[], max_samples=None, balance=False):
         """DataLoader Initialization
 
         Args:
@@ -12,6 +16,8 @@ class DataLoader:
             transforms (callable, optional): Optional transforms to be applied on a sample.
             shuffle (bool, optional): Shuffle data. Defaults to False.
             ignore_folders (list, optional): List of folders to ignore. Defaults to [].
+            max_samples (int, optional): Maximum number of samples to load. Defaults to None.
+            balance (str, optional): Balance data w.r.t max_samples. Defaults to None.
         """
         self.path = os.path.join(path, mode)
         self.mode = mode
@@ -20,15 +26,28 @@ class DataLoader:
         self.classes = []
         self.transforms = transforms
         self.ignore_folders = ignore_folders
+        self.balance = balance
+        self.max_samples = max_samples
         
         if os.path.exists(path):
             self.parse_data()
             
-        if shuffle:
-            indices = list(range(len(self)))
-            random.shuffle(indices)
-            self.paths = [self.paths[i] for i in indices]
-            self.labels = [self.labels[i] for i in indices]
+            ## Shuffle data
+            if shuffle:
+                indices = list(range(len(self)))
+                random.shuffle(indices)
+                self.paths = [self.paths[i] for i in indices]
+                self.labels = [self.labels[i] for i in indices]
+                
+            ## Balance data
+            if balance:
+                self.balance_data()
+            
+            ## Limit samples
+            if max_samples is not None and max_samples < len(self) and not balance:
+                self.paths = self.paths[:max_samples]
+                self.labels = self.labels[:max_samples]
+            
             
     
     def parse_data(self):
@@ -45,7 +64,42 @@ class DataLoader:
                     self.paths.append(os.path.join(root, file))
                     self.labels.append(self.classes.index(os.path.basename(root)))
         
-    
+        
+    def balance_data(self):
+        """Balance the data across classes using the specified sampling method."""
+        label_counts = Counter(self.labels)
+        max_samples_per_class = self.max_samples // len(self.classes)
+
+        balanced_paths = []
+        balanced_labels = []
+
+        # Balance data class by class
+        for class_ix in range(len(self.classes)):
+            # Get all samples for this class
+            class_paths = [self.paths[i] for i in range(len(self.paths)) if self.labels[i] == class_ix]
+            class_labels = [self.labels[i] for i in range(len(self.labels)) if self.labels[i] == class_ix]
+
+            # If there are more samples than max_samples_per_class, downsample
+            if label_counts[class_ix] > max_samples_per_class:
+                class_paths, class_labels = resample(
+                    class_paths, class_labels, n_samples=max_samples_per_class, random_state=42, replace=False
+                )
+
+            # If there are fewer samples than max_samples_per_class, upsample
+            elif label_counts[class_ix] < max_samples_per_class:
+                class_paths, class_labels = resample(
+                    class_paths, class_labels, n_samples=max_samples_per_class, random_state=42, replace=True
+                )
+
+            # Append the resampled paths and labels to the balanced lists
+            balanced_paths.extend(class_paths)
+            balanced_labels.extend(class_labels)
+
+        # Update self.paths and self.labels with the balanced data
+        self.paths = balanced_paths
+        self.labels = balanced_labels
+        
+                
     def __len__(self):
         """Get length of DataLoader
 
