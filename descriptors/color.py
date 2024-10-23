@@ -13,12 +13,13 @@ class ColorDescriptor:
         """
         self.bins = bins
 
-    def extract(self, image):
+    def extract(self, image, mask=None):
         """
         Extracts a color histogram from an image in the HSV color space.
 
         Args:
             image (numpy array): The image from which to extract the color features.
+            mask (numpy array): The mask to apply to the image (default is None).
 
         Returns:
             features (list): A flattened list of the histogram values normalized.
@@ -30,7 +31,7 @@ class ColorDescriptor:
         features = []
 
         # Extract the color histogram from the entire image
-        hist = cv2.calcHist([hsv_image], [0, 1, 2], None, self.bins, 
+        hist = cv2.calcHist([hsv_image], [0, 1, 2], mask, self.bins, 
                             [0, 180, 0, 256, 0, 256])
 
         # Normalize the histogram
@@ -97,7 +98,7 @@ class ColorLayoutDescriptor:
         # Extract only the top-left 3x3 coefficients (low-frequency components)
         # This is a typical way to reduce dimensionality
         return dct_coeffs[:3, :3].flatten()
-    
+
 
 class ColorCooccurrenceMatrixDescriptor:
     def __init__(self, distances=[1], angles=[0], levels=8):
@@ -113,12 +114,13 @@ class ColorCooccurrenceMatrixDescriptor:
         self.angles = angles
         self.levels = levels
 
-    def extract(self, image):
+    def extract(self, image, mask=None):
         """
-        Extracts the Color Co-occurrence Matrix Histogram from the image.
+        Extracts the Color Co-occurrence Matrix Histogram from the image with an optional mask.
 
         Args:
             image (numpy array): The image from which to extract the CCMH features.
+            mask (numpy array): Binary mask to apply to the image (1 for ROI, 0 for background).
 
         Returns:
             features (list): A list of combined co-occurrence matrix histograms for each color channel.
@@ -129,11 +131,25 @@ class ColorCooccurrenceMatrixDescriptor:
         # Initialize the feature vector
         features = []
 
-        # Compute color co-occurrence matrix histograms for each channel (H, S, V)
+        # Apply mask to each channel in HSV (if a mask is provided)
         for i in range(3):
-            quantized_channel = self.quantize_image(hsv_image[:, :, i])
+            channel = hsv_image[:, :, i]
+
+            # If mask is provided, set pixels outside mask to 0
+            if mask is not None:
+                masked_channel = np.zeros_like(channel)
+                masked_channel[mask > 0] = channel[mask > 0]  # Use only pixels inside the mask
+            else:
+                masked_channel = channel
+
+            # Quantize the masked channel
+            quantized_channel = self.quantize_image(masked_channel)
+
+            # Compute GLCM on the quantized channel
             glcm = graycomatrix(quantized_channel, distances=self.distances, angles=self.angles, levels=self.levels,
                                 symmetric=True, normed=True)
+
+            # Calculate the GLCM histogram features
             glcm_histogram = self.glcm_histogram(glcm)
             features.extend(glcm_histogram)
 
@@ -172,3 +188,4 @@ class ColorCooccurrenceMatrixDescriptor:
         # Create a feature vector based on these properties
         hist = [contrast, correlation, energy, homogeneity]
         return hist
+

@@ -44,7 +44,7 @@ class DataLoader:
                 self.balance_data()
             
             ## Limit samples
-            if max_samples is not None and max_samples < len(self) and not balance:
+            if max_samples is not None and max_samples < len(self):
                 self.paths = self.paths[:max_samples]
                 self.labels = self.labels[:max_samples]
             
