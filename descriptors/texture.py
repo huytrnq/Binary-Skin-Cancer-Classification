@@ -8,8 +8,18 @@ import cv2
 import numpy as np
 from skimage.feature import local_binary_pattern
 
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+from skimage.feature import local_binary_pattern
+
+import cv2
+import numpy as np
+from skimage.feature import local_binary_pattern
+import matplotlib.pyplot as plt
+
 class LBPDescriptor:
-    def __init__(self, radius=1, n_points=8, grid_x=1, grid_y=1):
+    def __init__(self, radius=1, n_points=8, grid_x=1, grid_y=1, visualize=False):
         """
         Initializes the LBPDescriptor with spatial grid parameters.
 
@@ -18,11 +28,13 @@ class LBPDescriptor:
             n_points (int): Number of circularly symmetric points considered for LBP.
             grid_x (int): Number of grids along the X-axis (width).
             grid_y (int): Number of grids along the Y-axis (height).
+            visualize (bool): Whether to visualize the LBP image.
         """
         self.radius = radius
         self.n_points = n_points
         self.grid_x = grid_x
         self.grid_y = grid_y
+        self.visualize = visualize
 
     def extract(self, image, mask=None):
         """
@@ -54,6 +66,12 @@ class LBPDescriptor:
         # Initialize the final concatenated histogram
         concatenated_hist = []
 
+        # Initialize an empty image to store the final LBP representation
+        if self.visualize:
+            lbp_image = np.zeros_like(masked_image)
+        else:
+            lbp_image = None
+
         # Loop over the grids
         for i in range(self.grid_y):
             for j in range(self.grid_x):
@@ -79,8 +97,13 @@ class LBPDescriptor:
                 # Append the histogram to the concatenated histograms
                 concatenated_hist.extend(lbp_hist)
 
+                if self.visualize:
+                    # Store the LBP result into the lbp_image
+                    lbp_image[start_y:end_y, start_x:end_x] = lbp
+
         # Convert to numpy array
-        return np.array(concatenated_hist)
+        return np.array(concatenated_hist), lbp_image
+
 
 
 class GLCMDescriptor:
