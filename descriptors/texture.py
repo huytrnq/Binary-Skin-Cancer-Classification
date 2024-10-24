@@ -104,32 +104,36 @@ class LBPDescriptor:
         # Convert to numpy array
         return np.array(concatenated_hist), lbp_image
 
-
-
 class GLCMDescriptor:
-    def __init__(self, distances=[1], angles=[0], levels=8):
+    def __init__(self, distances=[1], angles=[0], levels=8, grid_x=1, grid_y=1, visualize=False):
         """
-        Initializes the GLCMDescriptor.
+        Initializes the GLCMDescriptor with grid options.
 
         Args:
             distances (list): Distances for GLCM computation.
             angles (list): Angles for GLCM computation.
             levels (int): Number of quantization levels for the GLCM.
+            grid_x (int): Number of grids along the X-axis (width).
+            grid_y (int): Number of grids along the Y-axis (height).
+            visualize (bool): Whether to visualize the quantized image and GLCM matrix for the whole image.
         """
         self.distances = distances
         self.angles = angles
         self.levels = levels
+        self.grid_x = grid_x
+        self.grid_y = grid_y
+        self.visualize = visualize
 
     def extract(self, image, mask=None):
         """
-        Extracts Gray Level Co-occurrence Matrix (GLCM) features from the image.
+        Extracts GLCM features from the image, dividing it into grids.
 
         Args:
             image (numpy array): The image from which to extract GLCM features.
             mask (numpy array): Optional mask to apply to the image.
 
         Returns:
-            features (list): GLCM features including contrast, correlation, energy, and homogeneity.
+            concatenated_features (list): Concatenated GLCM features from all grids.
         """
         # Convert the image to grayscale if it's not already
         gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -140,23 +144,57 @@ class GLCMDescriptor:
         else:
             masked_image = gray_image
 
-        # Quantize the image to a fixed number of gray levels (for GLCM)
-        quantized_image = self.quantize_image(masked_image)
+        # Get the image size
+        height, width = masked_image.shape
 
-        # Compute GLCM
-        glcm = graycomatrix(quantized_image, distances=self.distances, angles=self.angles, levels=self.levels,
-                            symmetric=True, normed=True)
+        # Calculate the size of each grid
+        grid_height = height // self.grid_y
+        grid_width = width // self.grid_x
 
-        # Extract GLCM features
-        contrast = graycoprops(glcm, 'contrast').mean()
-        correlation = graycoprops(glcm, 'correlation').mean()
-        energy = graycoprops(glcm, 'energy').mean()
-        homogeneity = graycoprops(glcm, 'homogeneity').mean()
+        # Initialize the concatenated features list
+        concatenated_features = []
 
-        # Combine all GLCM features into a single list
-        glcm_features = [contrast, correlation, energy, homogeneity]
+        if self.visualize:
+            # Create an empty image to hold the entire quantized result
+            quantized_image_full = np.zeros_like(masked_image)
+        else:
+            quantized_image_full = None
 
-        return glcm_features
+        # Loop over the grids
+        for i in range(self.grid_y):
+            for j in range(self.grid_x):
+                # Extract the sub-region (grid) from the image
+                start_y = i * grid_height
+                end_y = start_y + grid_height
+                start_x = j * grid_width
+                end_x = start_x + grid_width
+
+                grid = masked_image[start_y:end_y, start_x:end_x]
+
+                # Quantize the grid to a fixed number of gray levels (for GLCM)
+                quantized_grid = self.quantize_image(grid)
+
+                if self.visualize:
+                    # Place the quantized grid back into the full image
+                    quantized_image_full[start_y:end_y, start_x:end_x] = quantized_grid
+
+                # Compute GLCM for the current grid
+                glcm = graycomatrix(quantized_grid, distances=self.distances, angles=self.angles, levels=self.levels,
+                                    symmetric=True, normed=True)
+
+                # Extract GLCM features for the grid
+                contrast = graycoprops(glcm, 'contrast').mean()
+                correlation = graycoprops(glcm, 'correlation').mean()
+                energy = graycoprops(glcm, 'energy').mean()
+                homogeneity = graycoprops(glcm, 'homogeneity').mean()
+
+                # Combine GLCM features into a list
+                glcm_features = [contrast, correlation, energy, homogeneity]
+
+                # Append the features to the concatenated features list
+                concatenated_features.extend(glcm_features)
+
+        return concatenated_features, quantized_image_full
 
     def quantize_image(self, image):
         """
