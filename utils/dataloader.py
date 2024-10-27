@@ -7,7 +7,7 @@ import numpy as np
 from sklearn.utils import resample
 
 class DataLoader:
-    def __init__(self, path, mode, transforms=None, shuffle=False, ignore_folders=[], max_samples=None, balance=False):
+    def __init__(self, path, mode, transforms=None, shuffle=False, ignore_folders=[], max_samples=None, balance=False, classes=None, mask=False):
         """DataLoader Initialization
 
         Args:
@@ -18,16 +18,19 @@ class DataLoader:
             ignore_folders (list, optional): List of folders to ignore. Defaults to [].
             max_samples (int, optional): Maximum number of samples to load. Defaults to None.
             balance (str, optional): Balance data w.r.t max_samples. Defaults to None.
+            classes (list, optional): List of classes. Defaults to None.
+            mask (bool, optional): If True, load mask images. Defaults to False.
         """
         self.path = os.path.join(path, mode)
         self.mode = mode
         self.paths = []
         self.labels = []
-        self.classes = []
+        self.classes = classes
         self.transforms = transforms
         self.ignore_folders = ignore_folders
         self.balance = balance
         self.max_samples = max_samples
+        self.mask = mask
         
         if os.path.exists(path):
             self.parse_data()
@@ -52,15 +55,10 @@ class DataLoader:
     
     def parse_data(self):
         """Load data from path
-        """
-        self.classes = os.listdir(self.path)
-        for folder in self.ignore_folders:
-            if folder in self.classes:
-                self.classes.remove(folder)
-                
+        """                
         for root, dirs, files in os.walk(self.path):                
             for file in files:
-                if file.endswith('.jpg') and os.path.basename(os.path.dirname(root)) not in self.ignore_folders:
+                if file.endswith('.jpg') and os.path.basename(root) not in self.ignore_folders:
                     self.paths.append(os.path.join(root, file))
                     self.labels.append(self.classes.index(os.path.basename(root)))
         
@@ -125,12 +123,27 @@ class DataLoader:
         """
         if self.idx < len(self):
             img = cv2.imread(self.paths[self.idx])
+            
+            # im_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            # im_hist = cv2.calcHist([im_gray], [0], None, [256], [0, 256])
+            
+            # if im_hist[0] > 0.1*img.shape[0]*img.shape[1]:
+            #     ## crop the image corresponding to the biggest contour
+            #     ot, otsu_mask = cv2.threshold(im_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            #     contours, _ = cv2.findContours(otsu_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                
+            #     if len(contours) > 0:
+            #         contour = max(contours, key=cv2.contourArea)
+            #         x, y, w, h = cv2.boundingRect(contour)
+            #         img = img[y:y+h, x:x+w]
+            
+            mask = cv2.imread(self.paths[self.idx].replace(self.mode, 'mask/' + self.mode), cv2.IMREAD_GRAYSCALE) if self.mask else None
             if self.transforms is not None:
                 img = self.transforms(img)
             label = self.labels[self.idx]
             path =  self.paths[self.idx]
             self.idx += 1
-            return img, label, path
+            return img, label, mask, path
         else:
             raise StopIteration
     

@@ -38,8 +38,8 @@ class MultifeatureBoW:
             descriptors_list = []
 
             # Extract features using the current descriptor
-            for image, label, path in tqdm(dataloader, desc="Extracting Features for " + desc_name):
-                features = descriptor.extract(image)
+            for image, label, mask, path in tqdm(dataloader, desc="Extracting Features for " + desc_name):
+                features = descriptor.extract(image, mask)
                 ## If the descriptor returns a tuple, take the first element
                 if type(features) == tuple:
                     features = features[0]
@@ -91,7 +91,7 @@ class MultifeatureBoW:
         histograms = []
         labels = []
         
-        for image, label, path in tqdm(dataloader, desc="Transforming Images"):
+        for image, label, mask, path in tqdm(dataloader, desc="Transforming Images"):
             histograms.append(self.extract_bow_histogram(image))
             labels.append(label)
         
@@ -153,5 +153,5 @@ class MultifeatureBoW:
         """
         print("Evaluating...")
         predictions = self.predict(dataloader)
-        labels = np.array([label for _, label, _ in dataloader])
+        labels = np.array([label for _, label, mask, _ in dataloader])
         return classification_report(labels, predictions, target_names=class_names), confusion_matrix(labels, predictions)

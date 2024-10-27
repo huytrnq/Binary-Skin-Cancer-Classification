@@ -87,12 +87,10 @@ class LBPDescriptor:
                 # Compute LBP for the current grid
                 lbp = local_binary_pattern(grid, self.n_points, self.radius, method="uniform")
                 
-                # Calculate LBP histogram for the current grid
-                lbp_hist, _ = np.histogram(lbp.ravel(), bins=np.arange(0, self.n_points + 3), range=(0, self.n_points + 2))
+                lbp_masked = lbp[grid > 0]
                 
-                # Normalize the histogram
-                lbp_hist = lbp_hist.astype("float")
-                lbp_hist /= (lbp_hist.sum() + 1e-7)
+                # Calculate LBP histogram for the current grid
+                lbp_hist, _ = np.histogram(lbp_masked.ravel(), bins=np.arange(0, self.n_points + 3), range=(0, self.n_points + 2))
 
                 # Append the histogram to the concatenated histograms
                 concatenated_hist.extend(lbp_hist)

@@ -44,25 +44,34 @@ class ColorDescriptor:
 
 
 class ColorLayoutDescriptor:
-    def __init__(self, grid_size=(8, 8)):
+    def __init__(self, grid_x=8, grid_y=8):
         """
         Initializes the Color Layout Descriptor.
 
         Args:
-            grid_size (tuple): The size of the grid for color layout (default is 8x8).
+            grid_x (int): Number of cells along the X-axis.
+            grid_y (int): Number of cells along the Y-axis.
         """
-        self.grid_size = grid_size
+        self.grid_size = (grid_x, grid_y)
 
-    def extract(self, image):
+    def extract(self, image, mask=None):
         """
         Extracts a Color Layout Descriptor from the image.
 
         Args:
             image (numpy array): The image from which to extract the color layout descriptor.
+            mask (numpy array): Optional mask to apply to the image.
 
         Returns:
             cld_features (list): A list of DCT-transformed features for the color layout descriptor.
         """
+        
+        ## Apply mask to the image if provided
+        if mask is not None:
+            masked_image = cv2.bitwise_and(image, image, mask=mask)
+        else:
+            masked_image = image
+        
         # Convert the image to YCrCb color space for better color separation
         ycrcb_image = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)
 
@@ -188,4 +197,3 @@ class ColorCooccurrenceMatrixDescriptor:
         # Create a feature vector based on these properties
         hist = [contrast, correlation, energy, homogeneity]
         return hist
-
