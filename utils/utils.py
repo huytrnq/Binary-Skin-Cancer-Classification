@@ -46,6 +46,38 @@ def export_experiment(name, params, feature_dict, model, notebook_name, output_f
     print(f"Experiment '{name}' saved at {experiment_folder}")
     
 
+def load_experiment(experiment_folder):
+    """
+    Load experiment data from a specified folder.
+    
+    Args:
+        experiment_folder (str): Directory containing the experiment files.
+        
+    Returns:
+        params (dict): Nested dictionary of experiment parameters for each descriptor.
+        feature_dict (dict): Dictionary of training and testing features.
+        model (object): Trained model object with full pipeline.
+    """
+    # Load parameters from a JSON file
+    params_file = os.path.join(experiment_folder, "params.json")
+    with open(params_file, "r") as f:
+        params = json.load(f)
+        
+    # Load features and labels from .npy files
+    feature_dict = {}
+    for file in os.listdir(experiment_folder):
+        if file.endswith(".npy"):
+            key = file.split(".")[0]
+            feature_dict[key] = np.load(os.path.join(experiment_folder, file))
+    
+    # Load the model object from a .pkl file
+    model_file = os.path.join(experiment_folder, "model.pkl")
+    with open(model_file, "rb") as f:
+        model = pickle.load(f)
+    
+    return params, feature_dict, model
+    
+
 def sliding_window(image, window_size, step_size):
     """
     A generator that yields the coordinates and the window of the image.
