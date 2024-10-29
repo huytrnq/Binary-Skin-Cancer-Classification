@@ -4,41 +4,62 @@ from scipy.fftpack import dct
 from skimage.feature import graycomatrix, graycoprops
 
 class ColorDescriptor:
-    def __init__(self, bins):
+    def __init__(self, bins, grid_x=3, grid_y=3):
         """
-        Initializes the color descriptor.
-        
+        Initializes the color descriptor with grid-based extraction.
+
         Args:
             bins (tuple): The number of bins for each channel in the HSV color space.
+            grid_x (int): Number of grid divisions along the x-axis.
+            grid_y (int): Number of grid divisions along the y-axis.
         """
         self.bins = bins
+        self.grid_x = grid_x
+        self.grid_y = grid_y
 
     def extract(self, image, mask=None):
         """
-        Extracts a color histogram from an image in the HSV color space.
+        Extracts color histograms from the image in the HSV color space for each grid cell.
 
         Args:
             image (numpy array): The image from which to extract the color features.
             mask (numpy array): The mask to apply to the image (default is None).
 
         Returns:
-            features (list): A flattened list of the histogram values normalized.
+            features (list): A concatenated list of histogram values from each grid cell, normalized.
         """
         # Convert the image to HSV color space
         hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        
+        # Get image dimensions and calculate grid cell size
+        h, w = hsv_image.shape[:2]
+        cell_h, cell_w = h // self.grid_y, w // self.grid_x
 
-        # Initialize the color histogram
+        # Initialize the feature vector
         features = []
 
-        # Extract the color histogram from the entire image
-        hist = cv2.calcHist([hsv_image], [0, 1, 2], mask, self.bins, 
-                            [0, 180, 0, 256, 0, 256])
+        # Loop through each grid cell
+        for row in range(self.grid_y):
+            for col in range(self.grid_x):
+                # Define the region for the current grid cell
+                x_start, x_end = col * cell_w, (col + 1) * cell_w
+                y_start, y_end = row * cell_h, (row + 1) * cell_h
+                
+                # Extract the cell from the HSV image
+                cell = hsv_image[y_start:y_end, x_start:x_end]
 
-        # Normalize the histogram
-        hist = cv2.normalize(hist, hist).flatten()
+                # Apply mask if provided, specific to the grid cell
+                cell_mask = mask[y_start:y_end, x_start:x_end] if mask is not None else None
 
-        # Add the histogram to the feature vector
-        features.extend(hist)
+                # Calculate the histogram for the cell
+                hist = cv2.calcHist([cell], [0, 1, 2], cell_mask, self.bins, 
+                                    [0, 180, 0, 256, 0, 256])
+
+                # Normalize the histogram and flatten it
+                hist = cv2.normalize(hist, hist).flatten()
+
+                # Append the cell's histogram to the features list
+                features.extend(hist)
 
         return features
 
@@ -110,7 +131,7 @@ class ColorLayoutDescriptor:
 
 
 class ColorCooccurrenceMatrixDescriptor:
-    def __init__(self, distances=[1], angles=[0], levels=8):
+    def __init__(self, distances=[1], angles=[0], levels=8, grid_x=1, grid_y=1):
         """
         Initializes the Color Co-occurrence Matrix Histogram.
 
@@ -118,21 +139,26 @@ class ColorCooccurrenceMatrixDescriptor:
             distances (list): Distances for GLCM computation.
             angles (list): Angles for GLCM computation.
             levels (int): Number of quantization levels for the color channels.
+            grid_x (int): Number of grids along the X-axis (width).
+            grid_y (int): Number of grids along the Y-axis (height).
         """
         self.distances = distances
         self.angles = angles
         self.levels = levels
+        self.grid_size = (grid_x, grid_y)
 
     def extract(self, image, mask=None):
         """
-        Extracts the Color Co-occurrence Matrix Histogram from the image with an optional mask.
+        Extracts the Color Co-occurrence Matrix Histogram from the image with an optional mask,
+        using a grid-based approach.
 
         Args:
             image (numpy array): The image from which to extract the CCMH features.
             mask (numpy array): Binary mask to apply to the image (1 for ROI, 0 for background).
 
         Returns:
-            features (list): A list of combined co-occurrence matrix histograms for each color channel.
+            features (list): A list of combined co-occurrence matrix histograms for each color channel
+                             across all grid cells.
         """
         # Convert image to HSV color space
         hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
@@ -140,27 +166,38 @@ class ColorCooccurrenceMatrixDescriptor:
         # Initialize the feature vector
         features = []
 
-        # Apply mask to each channel in HSV (if a mask is provided)
-        for i in range(3):
-            channel = hsv_image[:, :, i]
+        # Grid size based on the specified grid shape
+        h, w = hsv_image.shape[:2]
+        grid_h, grid_w = h // self.grid_size[0], w // self.grid_size[1]
 
-            # If mask is provided, set pixels outside mask to 0
-            if mask is not None:
-                masked_channel = np.zeros_like(channel)
-                masked_channel[mask > 0] = channel[mask > 0]  # Use only pixels inside the mask
-            else:
-                masked_channel = channel
+        # Loop over each cell in the grid
+        for row in range(self.grid_size[0]):
+            for col in range(self.grid_size[1]):
+                # Define the region for the current grid cell
+                y1, y2 = row * grid_h, (row + 1) * grid_h
+                x1, x2 = col * grid_w, (col + 1) * grid_w
 
-            # Quantize the masked channel
-            quantized_channel = self.quantize_image(masked_channel)
+                # Extract each channel in HSV for this grid cell
+                for i in range(3):
+                    channel = hsv_image[y1:y2, x1:x2, i]
 
-            # Compute GLCM on the quantized channel
-            glcm = graycomatrix(quantized_channel, distances=self.distances, angles=self.angles, levels=self.levels,
-                                symmetric=True, normed=True)
+                    # Apply mask if provided (focus on masked region in this grid cell)
+                    if mask is not None:
+                        masked_channel = np.zeros_like(channel)
+                        masked_channel[mask[y1:y2, x1:x2] > 0] = channel[mask[y1:y2, x1:x2] > 0]
+                    else:
+                        masked_channel = channel
 
-            # Calculate the GLCM histogram features
-            glcm_histogram = self.glcm_histogram(glcm)
-            features.extend(glcm_histogram)
+                    # Quantize the masked channel
+                    quantized_channel = self.quantize_image(masked_channel)
+
+                    # Compute GLCM on the quantized channel
+                    glcm = graycomatrix(quantized_channel, distances=self.distances, angles=self.angles, 
+                                        levels=self.levels, symmetric=True, normed=True)
+
+                    # Calculate the GLCM histogram features for the grid cell
+                    glcm_histogram = self.glcm_histogram(glcm)
+                    features.extend(glcm_histogram)
 
         return features
 
@@ -172,7 +209,7 @@ class ColorCooccurrenceMatrixDescriptor:
             channel (numpy array): A single channel from the image.
 
         Returns:
-            quantized_channel (numpy array): The quantized channel with the number of levels.
+            quantized_channel (numpy array): The quantized channel with the specified number of levels.
         """
         # Normalize the channel to the range 0-1 and multiply by the number of levels, then quantize
         quantized_channel = np.floor(channel / 256.0 * self.levels).astype(np.uint8)
@@ -186,7 +223,7 @@ class ColorCooccurrenceMatrixDescriptor:
             glcm (numpy array): GLCM matrix.
 
         Returns:
-            hist (list): Flattened and normalized GLCM histogram.
+            hist (list): Flattened and normalized GLCM histogram based on texture properties.
         """
         # Calculate texture properties from the GLCM
         contrast = graycoprops(glcm, 'contrast')[0, 0]

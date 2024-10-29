@@ -1,4 +1,50 @@
+import json
+import os
+import shutil
+import pickle
+import numpy as np
+from datetime import datetime
+from IPython.display import display, Javascript
 
+def export_experiment(name, params, feature_dict, model, notebook_name, output_folder="experiments"):
+    """
+    Export experiment data to a specified folder with parameters and features.
+    
+    Args:
+        name (str): Name of the experiment.
+        params (dict): Nested dictionary of experiment parameters for each descriptor.
+        feature_dict (dict): Dictionary of training and testing features.
+        model (object): Trained model object with full pipeline.
+        notebook_name (str): Name of the notebook that ran the experiment.
+        output_folder (str): Directory to store experiment files.
+    """
+    # Create a timestamped folder within the output folder
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    experiment_folder = os.path.join(output_folder, f"{name}_{timestamp}")
+    os.makedirs(experiment_folder, exist_ok=True)
+
+    # Save parameters to a JSON file with nested structure
+    params_file = os.path.join(experiment_folder, "params.json")
+    with open(params_file, "w") as f:
+        json.dump(params, f, indent=4)
+
+    # Save features and labels as a .npy file
+    for key, value in feature_dict.items():
+        np.save(os.path.join(experiment_folder, f"{key}.npy"), value)
+        
+    # Save the model object as a .pkl file
+    model_file = os.path.join(experiment_folder, "model.pkl")
+    with open(model_file, "wb") as f:
+        pickle.dump(model, f)
+    
+    # Save the notebook name that ran the experiment
+    display(Javascript(f"IPython.notebook.save_notebook()"))
+    notebook_src = os.path.join(os.getcwd(), notebook_name)
+    notebook_dest = os.path.join(experiment_folder, notebook_name)
+    shutil.copy(notebook_src, notebook_dest)
+    
+    print(f"Experiment '{name}' saved at {experiment_folder}")
+    
 
 def sliding_window(image, window_size, step_size):
     """
@@ -15,3 +61,5 @@ def sliding_window(image, window_size, step_size):
     for y in range(0, image.shape[0] - window_size[1] + 1, step_size):
         for x in range(0, image.shape[1] - window_size[0] + 1, step_size):
             yield (x, y, image[y:y + window_size[1], x:x + window_size[0]])
+            
+        

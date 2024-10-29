@@ -39,7 +39,7 @@ The binary problem of classifying Nevus images vs all the others containing more
     - [ ] Gray Level Co-occurrence Matrix
     - [x] Histogram of Oriented Gradients
     - [ ] SIFT
-    - [ ] Bag of Visual Words
+    - [x] Bag of Visual Words
 - [ ] Model
     - [x] Xgboost
 - [x] Training 

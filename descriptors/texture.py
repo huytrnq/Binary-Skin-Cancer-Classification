@@ -4,20 +4,6 @@ from skimage.feature import local_binary_pattern
 from skimage.feature import graycomatrix, graycoprops
 
 
-import cv2
-import numpy as np
-from skimage.feature import local_binary_pattern
-
-import cv2
-import numpy as np
-import matplotlib.pyplot as plt
-from skimage.feature import local_binary_pattern
-
-import cv2
-import numpy as np
-from skimage.feature import local_binary_pattern
-import matplotlib.pyplot as plt
-
 class LBPDescriptor:
     def __init__(self, radius=1, n_points=8, grid_x=1, grid_y=1, visualize=False):
         """
@@ -206,3 +192,88 @@ class GLCMDescriptor:
         """
         quantized_image = np.floor(image / 256.0 * self.levels).astype(np.uint8)
         return quantized_image
+    
+    
+import cv2
+import numpy as np
+
+class GaborFilterDescriptor:
+    """
+    Extracts texture features using Gabor filters at multiple orientations and frequencies.
+    """
+    
+    def __init__(self, frequencies=[0.1, 0.2, 0.3], orientations=[0, np.pi/4, np.pi/2, 3*np.pi/4]):
+        """
+        Initializes Gabor filter parameters.
+
+        Args:
+            frequencies (list): List of frequencies for the Gabor filters.
+            orientations (list): List of orientations (angles in radians) for the Gabor filters.
+        """
+        self.frequencies = frequencies
+        self.orientations = orientations
+
+    def extract(self, image, mask=None):
+        """
+        Applies Gabor filters to the image at different orientations and frequencies, 
+        and returns the filtered responses as texture features.
+
+        Args:
+            image (numpy array): The grayscale image for feature extraction.
+            mask (numpy array): Optional binary mask to specify the region of interest.
+
+        Returns:
+            features (list): Concatenated list of mean and standard deviation of filtered responses.
+        """
+        # Ensure the image is grayscale
+        if len(image.shape) > 2:
+            gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        else:
+            gray_image = image
+
+        # Initialize the feature list
+        features = []
+
+        # Apply Gabor filters across different orientations and frequencies
+        for frequency in self.frequencies:
+            for theta in self.orientations:
+                # Create Gabor kernel
+                kernel = self._create_gabor_kernel(frequency, theta)
+                
+                # Apply filter to the image
+                filtered_image = cv2.filter2D(gray_image, cv2.CV_32F, kernel)
+                
+                # If mask is provided, apply mask
+                if mask is not None:
+                    filtered_image = cv2.bitwise_and(filtered_image, filtered_image, mask=mask)
+
+                # Calculate mean and standard deviation of the filtered response
+                mean_val = np.mean(filtered_image)
+                std_val = np.std(filtered_image)
+                
+                # Append the feature values
+                features.extend([mean_val, std_val])
+
+        return features
+
+    def _create_gabor_kernel(self, frequency, theta, sigma=4.0, gamma=0.5, psi=0):
+        """
+        Creates a Gabor kernel with the specified parameters.
+
+        Args:
+            frequency (float): Frequency of the sinusoidal function.
+            theta (float): Orientation of the Gabor filter in radians.
+            sigma (float): Standard deviation of the Gaussian envelope.
+            gamma (float): Spatial aspect ratio.
+            psi (float): Phase offset.
+
+        Returns:
+            kernel (numpy array): The Gabor kernel.
+        """
+        # Size of the kernel; calculated to include the entire Gaussian envelope
+        kernel_size = int(1.5 * sigma / frequency)
+        if kernel_size % 2 == 0: kernel_size += 1  # Ensure kernel size is odd
+
+        # Generate the Gabor kernel
+        kernel = cv2.getGaborKernel((kernel_size, kernel_size), sigma, theta, 1.0/frequency, gamma, psi, ktype=cv2.CV_32F)
+        return kernel

@@ -124,18 +124,18 @@ class DataLoader:
         if self.idx < len(self):
             img = cv2.imread(self.paths[self.idx])
             
-            # im_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            # im_hist = cv2.calcHist([im_gray], [0], None, [256], [0, 256])
+            im_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            im_hist = cv2.calcHist([im_gray], [0], None, [256], [0, 256])
             
-            # if im_hist[0] > 0.1*img.shape[0]*img.shape[1]:
-            #     ## crop the image corresponding to the biggest contour
-            #     ot, otsu_mask = cv2.threshold(im_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            #     contours, _ = cv2.findContours(otsu_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if im_hist[0] > 0.1*img.shape[0]*img.shape[1]:
+                ## crop the image corresponding to the biggest contour
+                ot, otsu_mask = cv2.threshold(im_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+                contours, _ = cv2.findContours(otsu_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                 
-            #     if len(contours) > 0:
-            #         contour = max(contours, key=cv2.contourArea)
-            #         x, y, w, h = cv2.boundingRect(contour)
-            #         img = img[y:y+h, x:x+w]
+                if len(contours) > 0:
+                    contour = max(contours, key=cv2.contourArea)
+                    x, y, w, h = cv2.boundingRect(contour)
+                    img = img[y:y+h, x:x+w]
             
             mask = cv2.imread(self.paths[self.idx].replace(self.mode, 'mask/' + self.mode), cv2.IMREAD_GRAYSCALE) if self.mask else None
             if self.transforms is not None:
