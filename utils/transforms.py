@@ -26,15 +26,15 @@ class Composer:
         return img
     
 
-class ObjectCentricCropping:
-    def __init__(self, crop_size):
+class CentricCropping:
+    def __init__(self, grid_size):
         """
         Initialize ObjectCentricCropping with crop size.
 
         Args:
-            crop_size (tuple): Size of the crop.
+            grid_size (tuple): Divide the image into grid_size then take only the center
         """
-        self.crop_size = crop_size
+        self.grid_size = grid_size
 
     def __call__(self, img):
         """
@@ -47,18 +47,23 @@ class ObjectCentricCropping:
             numpy.ndarray: Cropped image.
         """
         # Convert image to grayscale
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        # Threshold the image
-        _, thresh = cv2.threshold(gray, 1, 255, cv2.THRESH_BINARY)
-        # Find contours
-        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        # Get bounding box
-        x, y, w, h = cv2.boundingRect(contours[0])
+        h, w = img.shape[:2]
+        
+        # Calculate the center of the object
+        center_x = w // 2
+        center_y = h // 2
+        
+        # Calculate the crop size
+        crop_size_x = w // self.grid_size[0]
+        crop_size_y = h // self.grid_size[1]
+        
+        # Calculate the crop coordinates
+        crop_x = center_x - crop_size_x // 2
+        crop_y = center_y - crop_size_y // 2
+        
         # Crop the image
-        crop = img[y:y+h, x:x+w]
-        # Resize the crop
-        crop = cv2.resize(crop, self.crop_size)
-        return crop
+        cropped = img[crop_y:crop_y + crop_size_y, crop_x:crop_x + crop_size_x]
+        return cropped
     
 class HairRemoval:
     def __init__(self, kernel_size=(15, 15), inpaint_radius=1):
