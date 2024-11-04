@@ -1,190 +1,42 @@
 import cv2
 import numpy as np
-from utils.utils import weighted_mask, distance_transform_weighting
+from scipy.fftpack import dct
 from skimage.feature import graycomatrix, graycoprops
 
-
 class ColorDescriptor:
-    def __init__(self, bins):
+    def __init__(self, bins, grid_x=3, grid_y=3):
         """
-        Initializes the color descriptor.
-        
+        Initializes the color descriptor with grid-based extraction.
+
         Args:
             bins (tuple): The number of bins for each channel in the HSV color space.
+            grid_x (int): Number of grid divisions along the x-axis.
+            grid_y (int): Number of grid divisions along the y-axis.
         """
         self.bins = bins
+        self.grid_x = grid_x
+        self.grid_y = grid_y
 
     def extract(self, image, mask=None):
         """
-        Extracts a color histogram from an image in the HSV color space.
+        Extracts color histograms from the image in the HSV color space for each grid cell.
 
         Args:
             image (numpy array): The image from which to extract the color features.
             mask (numpy array): The mask to apply to the image (default is None).
 
         Returns:
-            features (list): A flattened list of the histogram values normalized.
+            features (list): A concatenated list of histogram values from each grid cell, normalized.
         """
         # Convert the image to HSV color space
         hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-
-        # Initialize the color histogram
-        features = []
         
-        mask = distance_transform_weighting(image, mask) if mask is not None else None
-
-        # Extract the color histogram from the entire image
-        hist = cv2.calcHist([hsv_image], [0, 1, 2], mask, self.bins, 
-                            [0, 180, 0, 256, 0, 256])
-
-        # Normalize the histogram
-        hist = cv2.normalize(hist, hist).flatten()
-
-        # Add the histogram to the feature vector
-        features.extend(hist)
-
-        return features
-    
-
-class MultiColorSpaceDescriptor:
-    def __init__(self, bins=(8, 8, 8)):
-        """
-        Initializes the multi-color space descriptor.
-
-        Args:
-            bins (tuple): The number of bins for each channel in each color space.
-        """
-        self.bins = bins
-
-    def extract(self, image, mask=None):
-        """
-        Extracts color histograms from the image in multiple color spaces and concatenates them.
-
-        Args:
-            image (numpy array): The image from which to extract the color features.
-            mask (numpy array): The mask to apply to the image (default is None).
-
-        Returns:
-            features (list): A concatenated list of normalized histogram values from all color spaces.
-        """
-        # Initialize the feature vector
-        features = []
-
-        # Extract features from each color space and concatenate
-        features.extend(self.extract_hsv(image, mask))
-        # features.extend(self.extract_rgb(image, mask))
-        features.extend(self.extract_lab(image, mask))
-
-        return features
-
-    def extract_hsv(self, image, mask):
-        """
-        Extracts a color histogram in the HSV color space.
-
-        Args:
-            image (numpy array): The image from which to extract the color features.
-            mask (numpy array): The mask to apply to the image (default is None).
-
-        Returns:
-            features (list): A flattened list of the histogram values normalized.
-        """
-        hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-        hist = cv2.calcHist([hsv_image], [0, 1, 2], mask, self.bins, [0, 180, 0, 256, 0, 256])
-        hist = cv2.normalize(hist, hist).flatten()
-        return hist.tolist()
-
-    def extract_rgb(self, image, mask):
-        """
-        Extracts a color histogram in the RGB color space.
-
-        Args:
-            image (numpy array): The image from which to extract the color features.
-            mask (numpy array): The mask to apply to the image (default is None).
-
-        Returns:
-            features (list): A flattened list of the histogram values normalized.
-        """
-        rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        hist = cv2.calcHist([rgb_image], [0, 1, 2], mask, self.bins, [0, 256, 0, 256, 0, 256])
-        hist = cv2.normalize(hist, hist).flatten()
-        return hist.tolist()
-
-    def extract_ycbcr(self, image, mask):
-        """
-        Extracts a color histogram in the YCbCr color space.
-
-        Args:
-            image (numpy array): The image from which to extract the color features.
-            mask (numpy array): The mask to apply to the image (default is None).
-
-        Returns:
-            features (list): A flattened list of the histogram values normalized.
-        """
-        ycbcr_image = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)
-        hist = cv2.calcHist([ycbcr_image], [0, 1, 2], mask, self.bins, [0, 256, 0, 256, 0, 256])
-        hist = cv2.normalize(hist, hist).flatten()
-        return hist.tolist()
-
-    def extract_lab(self, image, mask):
-        """
-        Extracts a color histogram in the Lab color space.
-
-        Args:
-            image (numpy array): The image from which to extract the color features.
-            mask (numpy array): The mask to apply to the image (default is None).
-
-        Returns:
-            features (list): A flattened list of the histogram values normalized.
-        """
-        lab_image = cv2.cvtColor(image, cv2.COLOR_BGR2Lab)
-        hist = cv2.calcHist([lab_image], [0, 1, 2], mask, self.bins, [0, 256, 0, 256, 0, 256])
-        hist = cv2.normalize(hist, hist).flatten()
-        return hist.tolist()
-
-
-
-class ColorLayoutDescriptor:
-    def __init__(self, grid_x=8, grid_y=8, dct_size=8):
-        """
-        Initializes the Color Layout Descriptor with grid-based extraction.
-
-        Args:
-            grid_x (int): Number of grid cells along the X-axis.
-            grid_y (int): Number of grid cells along the Y-axis.
-            dct_size (int): Number of DCT coefficients to keep (from top-left corner).
-        """
-        self.grid_x = grid_x
-        self.grid_y = grid_y
-        self.dct_size = dct_size
-
-    def extract(self, image, mask=None):
-        """
-        Extracts a Color Layout Descriptor from the image using grid-based extraction.
-
-        Args:
-            image (numpy array): The image from which to extract the color layout descriptor.
-            mask (numpy array): Optional mask to apply to the image.
-
-        Returns:
-            cld_features (list): A concatenated list of DCT-transformed features for each grid cell.
-        """
-        
-        # Apply mask to the image if provided
-        if mask is not None:
-            # masked_image = cv2.bitwise_and(image, image, mask=mask)
-            mask = distance_transform_weighting(image, mask) if mask is not None else None
-        else:
-            masked_image = image
-
-        # Convert the image to YCrCb color space for better color separation
-        ycrcb_image = cv2.cvtColor(masked_image, cv2.COLOR_BGR2YCrCb)
-
         # Get image dimensions and calculate grid cell size
-        h, w = ycrcb_image.shape[:2]
+        h, w = hsv_image.shape[:2]
         cell_h, cell_w = h // self.grid_y, w // self.grid_x
 
         # Initialize the feature vector
-        cld_features = []
+        features = []
 
         # Loop through each grid cell
         for row in range(self.grid_y):
@@ -192,52 +44,90 @@ class ColorLayoutDescriptor:
                 # Define the region for the current grid cell
                 x_start, x_end = col * cell_w, (col + 1) * cell_w
                 y_start, y_end = row * cell_h, (row + 1) * cell_h
+                
+                # Extract the cell from the HSV image
+                cell = hsv_image[y_start:y_end, x_start:x_end]
 
-                # Extract the cell from the YCrCb image
-                cell = ycrcb_image[y_start:y_end, x_start:x_end]
+                # Apply mask if provided, specific to the grid cell
+                cell_mask = mask[y_start:y_end, x_start:x_end] if mask is not None else None
 
-                # Resize cell to an even dimension if necessary
-                if cell.shape[0] % 2 != 0 or cell.shape[1] % 2 != 0:
-                    cell = cv2.resize(cell, (cell.shape[1] + cell.shape[1] % 2, cell.shape[0] + cell.shape[0] % 2))
+                # Calculate the histogram for the cell
+                hist = cv2.calcHist([cell], [0, 1, 2], cell_mask, self.bins, 
+                                    [0, 180, 0, 256, 0, 256])
 
-                # Split the Y, Cr, and Cb channels
-                y_channel, cr_channel, cb_channel = cv2.split(cell)
+                # Normalize the histogram and flatten it
+                hist = cv2.normalize(hist, hist).flatten()
 
-                # Apply DCT to each channel and keep top-left `dct_size` coefficients
-                y_dct = self.apply_dct(y_channel)
-                cr_dct = self.apply_dct(cr_channel)
-                cb_dct = self.apply_dct(cb_channel)
+                # Append the cell's histogram to the features list
+                features.extend(hist)
 
-                # Concatenate the DCT coefficients for this grid cell
-                cell_features = np.concatenate([y_dct, cr_dct, cb_dct])
+        return features
 
-                # Add the grid cell's features to the overall feature vector
-                cld_features.extend(cell_features)
+
+class ColorLayoutDescriptor:
+    def __init__(self, grid_x=8, grid_y=8):
+        """
+        Initializes the Color Layout Descriptor.
+
+        Args:
+            grid_x (int): Number of cells along the X-axis.
+            grid_y (int): Number of cells along the Y-axis.
+        """
+        self.grid_size = (grid_x, grid_y)
+
+    def extract(self, image, mask=None):
+        """
+        Extracts a Color Layout Descriptor from the image.
+
+        Args:
+            image (numpy array): The image from which to extract the color layout descriptor.
+            mask (numpy array): Optional mask to apply to the image.
+
+        Returns:
+            cld_features (list): A list of DCT-transformed features for the color layout descriptor.
+        """
+        
+        ## Apply mask to the image if provided
+        if mask is not None:
+            masked_image = cv2.bitwise_and(image, image, mask=mask)
+        else:
+            masked_image = image
+        
+        # Convert the image to YCrCb color space for better color separation
+        ycrcb_image = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)
+
+        # Resize the image to the specified grid size (height, width)
+        resized_image = cv2.resize(ycrcb_image, self.grid_size)  # grid_size is a tuple (width, height)
+
+        # Split the Y, Cr, and Cb channels
+        y_channel, cr_channel, cb_channel = cv2.split(resized_image)
+
+        # Apply DCT to each channel to get the compact representation
+        y_dct = self.apply_dct(y_channel)
+        cr_dct = self.apply_dct(cr_channel)
+        cb_dct = self.apply_dct(cb_channel)
+
+        # Combine the DCT coefficients from each channel into a single feature vector
+        cld_features = np.concatenate([y_dct, cr_dct, cb_dct])
 
         return cld_features
 
     def apply_dct(self, channel):
         """
-        Applies Discrete Cosine Transform (DCT) to a single channel and keeps the top-left
-        `dct_size` coefficients.
+        Applies the Discrete Cosine Transform (DCT) to a color channel.
 
         Args:
-            channel (numpy array): A single color channel from the image.
+            channel (numpy array): A single color channel.
 
         Returns:
-            dct_coefficients (numpy array): The top-left DCT coefficients as a flattened array.
+            dct_coeffs (numpy array): The DCT coefficients (compact representation).
         """
-        # Apply DCT
-        dct = cv2.dct(np.float32(channel))
-        
-        # Keep only the top-left dct_size x dct_size block
-        dct_block = dct[:self.dct_size, :self.dct_size]
+        # Apply 2D DCT (Discrete Cosine Transform)
+        dct_coeffs = dct(dct(channel, axis=0, norm='ortho'), axis=1, norm='ortho')
 
-        # Flatten the block to create a feature vector
-        dct_coefficients = dct_block.flatten()
-
-        return dct_coefficients
-
+        # Extract only the top-left 3x3 coefficients (low-frequency components)
+        # This is a typical way to reduce dimensionality
+        return dct_coeffs[:3, :3].flatten()
 
 
 class ColorCooccurrenceMatrixDescriptor:
@@ -268,7 +158,7 @@ class ColorCooccurrenceMatrixDescriptor:
 
         Returns:
             features (list): A list of combined co-occurrence matrix histograms for each color channel
-                            across all grid cells.
+                             across all grid cells.
         """
         # Convert image to HSV color space
         hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)

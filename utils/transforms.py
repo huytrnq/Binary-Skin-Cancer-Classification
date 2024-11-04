@@ -26,15 +26,15 @@ class Composer:
         return img
     
 
-class CentricCropping:
-    def __init__(self, grid_size):
+class ObjectCentricCropping:
+    def __init__(self, crop_size):
         """
         Initialize ObjectCentricCropping with crop size.
 
         Args:
-            grid_size (tuple): Divide the image into grid_size then take only the center
+            crop_size (tuple): Size of the crop.
         """
-        self.grid_size = grid_size
+        self.crop_size = crop_size
 
     def __call__(self, img):
         """
@@ -47,35 +47,33 @@ class CentricCropping:
             numpy.ndarray: Cropped image.
         """
         # Convert image to grayscale
-        h, w = img.shape[:2]
-        
-        # Calculate the center of the object
-        center_x = w // 2
-        center_y = h // 2
-        
-        # Calculate the crop size
-        crop_size_x = w // self.grid_size[0]
-        crop_size_y = h // self.grid_size[1]
-        
-        # Calculate the crop coordinates
-        crop_x = center_x - crop_size_x // 2
-        crop_y = center_y - crop_size_y // 2
-        
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        # Threshold the image
+        _, thresh = cv2.threshold(gray, 1, 255, cv2.THRESH_BINARY)
+        # Find contours
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # Get bounding box
+        x, y, w, h = cv2.boundingRect(contours[0])
         # Crop the image
-        cropped = img[crop_y:crop_y + crop_size_y, crop_x:crop_x + crop_size_x]
-        return cropped
+        crop = img[y:y+h, x:x+w]
+        # Resize the crop
+        crop = cv2.resize(crop, self.crop_size)
+        return crop
     
 class HairRemoval:
-    def __init__(self, kernel_size=(15, 15), inpaint_radius=1):
-        """Hair Removal Using Morphological Operations and Inpainting
+    def __init__(self, kernel_size=(5, 5), inpaint_radius=0.5, threshold_value=15):
+        """
+        Hair Removal Using Morphological Operations and Inpainting
 
         Args:
-            kernel_size (tuple, optional): _description_. Defaults to (15, 15).
-            inpaint_radius (int, optional): _description_. Defaults to 1.
+            kernel_size (tuple, optional): Size of the structuring element for blackhat operation. Defaults to (10, 10).
+            inpaint_radius (float, optional): Radius for inpainting. Defaults to 0.5.
+            threshold_value (int, optional): Threshold value for binary mask. Defaults to 15.
         """
         self.kernel_size = kernel_size
         self.inpaint_radius = inpaint_radius
-    
+        self.threshold_value = threshold_value
+
     def __call__(self, img):
         """
         Remove hair from the image.
@@ -86,26 +84,32 @@ class HairRemoval:
         Returns:
             numpy.ndarray: Image with hair removed.
         """
-        # Check if the image is gray
-        if len(img.shape) == 3:
-            if img.shape[2] == 3:    
-                im_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        # Convert the image to grayscale if it is colored
+        if len(img.shape) == 3 and img.shape[2] == 3:    
+            im_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         else:
             im_gray = img
-        # Convert image to grayscale
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, self.kernel_size)  # You can adjust kernel size based on hair thickness
-        # Apply a blackhat filter to highlight the hair
+
+        # Adjust kernel for hair thickness
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, self.kernel_size)
+        
+        # Blackhat filter to highlight the hair
         blackhat = cv2.morphologyEx(im_gray, cv2.MORPH_BLACKHAT, kernel)
 
-        # Apply a binary threshold to extract the hair regions
-        _, threshold = cv2.threshold(blackhat, 10, 255, cv2.THRESH_BINARY)
+        # Apply binary threshold with an adjustable threshold value
+        _, threshold = cv2.threshold(blackhat, self.threshold_value, 255, cv2.THRESH_BINARY)
 
         # Perform morphological closing to clean up the mask
-        kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))  # Adjust size if necessary
+        kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
         closing = cv2.morphologyEx(threshold, cv2.MORPH_CLOSE, kernel_close)
 
-        # Inpaint the original image using the hair mask to remove the hair
+        # Inpaint the image to remove hair
         result = cv2.inpaint(img, closing, inpaintRadius=self.inpaint_radius, flags=cv2.INPAINT_TELEA)
+
+        # Optional: Apply a sharpening filter to reduce blurring
+        sharpen_kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])  # Basic sharpening kernel
+        result = cv2.filter2D(result, -1, sharpen_kernel)
+
         return result
     
 

@@ -1,6 +1,5 @@
 import json
 import os
-import cv2
 import shutil
 import pickle
 import numpy as np
@@ -95,82 +94,4 @@ def sliding_window(image, window_size, step_size):
         for x in range(0, image.shape[1] - window_size[0] + 1, step_size):
             yield (x, y, image[y:y + window_size[1], x:x + window_size[0]])
             
-            
-
-
-def distance_transform_weighting(image, mask, max_distance=50, weight=0.3):
-    """
-    Applies a distance-based weighting on the mask to smoothly transition from the ROI to the background.
-
-    Args:
-        image (numpy array): Input image.
-        mask (numpy array): Binary mask (1 for ROI, 0 for background).
-        max_distance (int): Maximum distance for weighting.
-
-    Returns:
-        weighted_image (numpy array): Image with distance-weighted mask.
-    """
-    # Calculate distance transform of the mask
-    dist_transform = cv2.distanceTransform((mask == 0).astype(np.uint8), cv2.DIST_L2, 5)
-
-    # Normalize distance to range [0, 1] and apply max distance
-    normalized_dist = np.clip(dist_transform / max_distance, 0, 1)
-    weight_mask = 1 - normalized_dist  # Higher weight near the ROI
-
-    # Repeat the weight mask across color channels
-    weight_mask = np.repeat(weight_mask[:, :, np.newaxis], 3, axis=2)
-    
-    if image.ndim == 2:
-        image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-
-    # Blend the image with the weighted mask
-    weighted_image = image * weight_mask + image * (1 - weight_mask) * weight
-    
-    # Ensure mask is single-channel and 8-bit unsigned
-    weighted_image = weighted_image.astype(np.uint8)
-    weighted_image = cv2.cvtColor(weighted_image, cv2.COLOR_BGR2GRAY) if weighted_image.ndim == 3 else weighted_image
-
-    return weighted_image
-
-
-
-
-def weighted_mask(image, mask, blur_size=51):
-    """
-    Applies a weighted mask to retain some background context by softening the mask edges.
-
-    Args:
-        image (numpy array): Input image.
-        mask (numpy array): Binary mask (1 for ROI, 0 for background).
-        blur_size (int): Kernel size for Gaussian blur to soften mask edges (must be positive and odd).
-
-    Returns:
-        weighted_image (numpy array): Image with weighted mask applied.
-    """
-    # Ensure blur_size is positive and odd
-    if blur_size <= 0:
-        blur_size = 1
-    elif blur_size % 2 == 0:
-        blur_size += 1
-        
-    if image.ndim == 2:
-        image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-
-    # Convert the mask to a float (0 to 1 range)
-    soft_mask = mask.astype(float)
-    
-    # Apply Gaussian blur to soften the edges of the mask
-    soft_mask = cv2.GaussianBlur(soft_mask, (blur_size, blur_size), 0)
-
-    # Expand dimensions to match the image channels (3 for color image)
-    soft_mask = np.repeat(soft_mask[:, :, np.newaxis], 3, axis=2)
-
-    # Apply the weighted mask to the image
-    weighted_image = image * soft_mask + image * (1 - soft_mask) * 0.5  # retain some context from background
-    
-    # Ensure mask is single-channel and 8-bit unsigned
-    weighted_image = weighted_image.astype(np.uint8)
-    weighted_image = cv2.cvtColor(weighted_image, cv2.COLOR_BGR2GRAY) if weighted_image.ndim == 3 else weighted_image
-
-    return weighted_image
         

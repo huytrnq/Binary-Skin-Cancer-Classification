@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-from utils.utils import weighted_mask, distance_transform_weighting
 from skimage.feature import local_binary_pattern
 from skimage.feature import graycomatrix, graycoprops
 
@@ -39,8 +38,7 @@ class LBPDescriptor:
         
         # Apply mask to the image if provided
         if mask is not None:
-            # masked_image = cv2.bitwise_and(gray_image, gray_image, mask=mask)
-            masked_image = distance_transform_weighting(gray_image, mask)
+            masked_image = cv2.bitwise_and(gray_image, gray_image, mask=mask)
         else:
             masked_image = gray_image
 
@@ -126,8 +124,7 @@ class GLCMDescriptor:
 
         # Apply mask to the image if provided
         if mask is not None:
-            # masked_image = cv2.bitwise_and(gray_image, gray_image, mask=mask)
-            masked_image = distance_transform_weighting(gray_image, mask)
+            masked_image = cv2.bitwise_and(gray_image, gray_image, mask=mask)
         else:
             masked_image = gray_image
 
@@ -196,6 +193,9 @@ class GLCMDescriptor:
         quantized_image = np.floor(image / 256.0 * self.levels).astype(np.uint8)
         return quantized_image
     
+    
+import cv2
+import numpy as np
 
 class GaborFilterDescriptor:
     """
@@ -277,98 +277,3 @@ class GaborFilterDescriptor:
         # Generate the Gabor kernel
         kernel = cv2.getGaborKernel((kernel_size, kernel_size), sigma, theta, 1.0/frequency, gamma, psi, ktype=cv2.CV_32F)
         return kernel
-
-
-class ColorMultiScaleLBPDescriptor:
-    def __init__(self, radius=1, n_points=8, scales=[1, 2, 3]):
-        """
-        Initializes the Color Multi-Scale LBP Descriptor.
-
-        Args:
-            radius (int): Radius of the LBP.
-            n_points (int): Number of points considered for LBP.
-            scales (list): List of scales (multipliers for radius) for multi-scale LBP.
-        """
-        self.radius = radius
-        self.n_points = n_points
-        self.scales = scales
-
-    def extract(self, image):
-        """
-        Extracts multi-scale LBP features across multiple color spaces.
-
-        Args:
-            image (numpy array): The input image from which to extract features.
-
-        Returns:
-            features (list): A concatenated list of LBP features across color spaces and scales.
-        """
-        # Convert the image to different color spaces
-        color_spaces = {
-            "YCbCr": cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb),
-            "HSV": cv2.cvtColor(image, cv2.COLOR_BGR2HSV),
-        }
-
-        # Initialize the feature vector
-        features = []
-
-        # Extract LBP features for each color space and each scale
-        for color_space_name, color_space_img in color_spaces.items():
-            for scale in self.scales:
-                # Extract LBP for each channel in the color space
-                for channel in cv2.split(color_space_img):
-                    lbp_features = self.apply_lbp(channel, scale)
-                    features.extend(lbp_features)
-
-        return features
-
-    def apply_lbp(self, channel, scale):
-        """
-        Applies multi-scale LBP to a single channel.
-
-        Args:
-            channel (numpy array): The single channel from a color space.
-            scale (int): Scale multiplier for the LBP radius.
-
-        Returns:
-            lbp_histogram (list): Histogram of the LBP for the channel.
-        """
-        # Apply LBP with the scaled radius
-        lbp = local_binary_pattern(channel, self.n_points * scale, self.radius * scale, method='uniform')
-        
-        # Calculate LBP histogram and normalize
-        n_bins = int(lbp.max() + 1)
-        lbp_hist, _ = np.histogram(lbp.ravel(), bins=n_bins, range=(0, n_bins))
-        lbp_hist = lbp_hist.astype("float")
-        lbp_hist /= (lbp_hist.sum() + 1e-6)  # Normalize
-
-        return lbp_hist.tolist()
-
-    def convert_to_oRGB(self, image):
-        """
-        Converts the image to oRGB color space. This is a placeholder since OpenCV doesn't support oRGB.
-        
-        Args:
-            image (numpy array): Input BGR image.
-
-        Returns:
-            oRGB_image (numpy array): Placeholder oRGB image (for demonstration).
-        """
-        # Placeholder for oRGB conversion
-        # If a library supporting oRGB is available, use it here
-        return cv2.cvtColor(image, cv2.COLOR_BGR2Lab)  # Approximating with Lab color space as a placeholder
-
-    def normalize_rgb(self, image):
-        """
-        Normalizes the RGB channels to obtain rgb values, where each channel is divided by the sum of all channels.
-
-        Args:
-            image (numpy array): Input BGR image.
-
-        Returns:
-            normalized_rgb (numpy array): Normalized RGB image.
-        """
-        float_img = image.astype(float)
-        sum_channels = float_img.sum(axis=2, keepdims=True) + 1e-6  # Avoid division by zero
-        normalized_rgb = (float_img / sum_channels * 255).astype(np.uint8)
-        return normalized_rgb

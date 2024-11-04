@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-from utils.utils import distance_transform_weighting
 from scipy.stats import skew, kurtosis, entropy
 
 class IntensityStatsGridDescriptor:
@@ -53,8 +52,7 @@ class IntensityStatsGridDescriptor:
         
         ## Apply mask to the image if provided
         if mask is not None:
-            # gray_image = cv2.bitwise_and(gray_image, gray_image, mask=mask)
-            gray_image = distance_transform_weighting(gray_image, mask)
+            gray_image = cv2.bitwise_and(gray_image, gray_image, mask=mask)
         else:
             gray_image = gray_image
         
