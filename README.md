@@ -4,13 +4,12 @@ This project is a binary classification task to classify skin lesion, which is p
 # Table of Contents
 1. [Introduction](#introduction)
 2. [Dataset](#dataset)
-3. [Data Preprocessing](#data-preprocessing)
-4. [TODO](#todo)
-5. [Pipeline](#pipeline)
-6. [Training](#training)
-7. [Evaluation](#evaluation)
-8. [Results](#results)
-9. [References](#references)
+3. [Todo](#todo)
+4. [Pipeline](#pipeline)
+5. [Training](#training)
+6. [Evaluation](#evaluation)
+7. [Results](#results)
+8. [References](#references)
 
 # Introduction
 Skin cancer is the most common type of cancer, and early detection is crucial for successful treatment. The goal of this project is to develop a machine learning model for 2 challenging tasks: binary classification of benign and malignant skin lesions and three classes classification of Melanoma, Basal Cell Carcinoma, and Squamous Cell Carcinoma. The model is trained using the extracted features from the images.
@@ -31,9 +30,7 @@ The dataset consists of more than 15,000 images for binary classification and ar
         *Distribution of three classes in the dataset.*
     </p>
 
-# Data Preprocessing
-
-# TODO
+# Todo
 - [x] Data Preprocessing
     - [x] Hair Removal
     - [x] Masking with Segmentation
@@ -52,7 +49,7 @@ The dataset consists of more than 15,000 images for binary classification and ar
 
 # Pipeline
 1. Data Preprocessing
-To improve model performance and focus on relevant image features, the following preprocessing steps are applied:
+- To improve model performance and focus on relevant image features, the following preprocessing steps are applied:
     - Hair Removal: Removes hair artifacts that could interfere with lesion analysis.
     ![Hair Removal](./images/hair_removal.png)
     - Masking with Segmentation: Isolates the lesion region, reducing the influence of background features.
