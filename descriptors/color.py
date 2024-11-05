@@ -58,6 +58,8 @@ class ColorDescriptor:
                 # Normalize the histogram and flatten it
                 hist = cv2.normalize(hist, hist).flatten()
 
+
+
                 # Append the cell's histogram to the features list
                 features.extend(hist)
 
@@ -234,3 +236,150 @@ class ColorCooccurrenceMatrixDescriptor:
         # Create a feature vector based on these properties
         hist = [contrast, correlation, energy, homogeneity]
         return hist
+    
+
+    ##############################Sumeet_Update##############################
+
+import cv2
+import numpy as np
+from scipy.fftpack import dct
+
+class ColorDescriptor_Update:
+    def __init__(self, bins=(8, 8, 8), grid_size=(8, 8)):
+        """
+        Initializes the ColorDescriptor with options for color histogram extraction.
+
+        Args:
+            bins (tuple): The number of bins for each channel in HSV color space.
+            grid_size (tuple): Grid dimensions (grid_x, grid_y) for layout-based extraction.
+        """
+        self.bins = bins
+        self.grid_size = grid_size
+
+    def scalable_color_descriptor(self, image, mask=None):
+        """
+        Extracts a scalable color histogram from the image in HSV color space, optionally using a mask.
+
+        Args:
+            image (numpy array): The input image.
+            mask (numpy array, optional): Binary mask to apply to the image.
+
+        Returns:
+            hist (numpy array): Flattened and normalized histogram.
+        """
+        hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        hist = cv2.calcHist([hsv_image], [0, 1, 2], mask, self.bins, [0, 180, 0, 256, 0, 256])
+        hist = cv2.normalize(hist, hist).flatten()
+        return hist
+
+    def color_structure_descriptor(self, image, mask=None):
+        """
+        Extracts a color structure histogram, using a structuring element to capture spatial color structure.
+
+        Args:
+            image (numpy array): The input image.
+            mask (numpy array, optional): Binary mask to apply to the image.
+
+        Returns:
+            color_structure_hist (list): Flattened histogram of local color structures.
+        """
+        hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        struct_element = (8, 8)  # Structuring element size to capture local colors
+        color_structure_hist = []
+        for i in range(0, hsv_image.shape[0], struct_element[0]):
+            for j in range(0, hsv_image.shape[1], struct_element[1]):
+                cell = hsv_image[i:i + struct_element[0], j:j + struct_element[1]]
+                cell_mask = mask[i:i + struct_element[0], j:j + struct_element[1]] if mask is not None else None
+                hist = cv2.calcHist([cell], [0, 1, 2], cell_mask, self.bins, [0, 180, 0, 256, 0, 256])
+                color_structure_hist.extend(hist.flatten())
+        return np.array(color_structure_hist)
+
+    def dominant_color_descriptor(self, image, mask=None):
+        """
+        Identifies dominant colors in the image and their proportions, optionally using a mask.
+
+        Args:
+            image (numpy array): The input image.
+            mask (numpy array, optional): Binary mask to apply to the image.
+
+        Returns:
+            dominant_colors (numpy array): Flattened array of dominant color values and proportions.
+        """
+        hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        if mask is not None:
+            masked_pixels = hsv_image[mask > 0]
+        else:
+            masked_pixels = hsv_image.reshape(-1, 3)
+
+        # Perform k-means clustering to find dominant colors
+        _, labels, centers = cv2.kmeans(
+            np.float32(masked_pixels), 3, None,
+            (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0),
+            10, cv2.KMEANS_RANDOM_CENTERS
+        )
+        
+        # Convert labels to int for bincount
+        labels = labels.flatten().astype(int)
+        dominant_color_counts = np.bincount(labels)
+        proportions = dominant_color_counts / dominant_color_counts.sum()
+        
+        # Concatenate dominant color centers and proportions
+        dominant_colors = np.concatenate([centers.flatten(), proportions])
+        return dominant_colors
+
+    def color_layout_descriptor(self, image, mask=None):
+        """
+        Extracts a Color Layout Descriptor (CLD) by applying the Discrete Cosine Transform (DCT) to each color channel.
+
+        Args:
+            image (numpy array): The input image.
+            mask (numpy array, optional): Binary mask to apply to the image.
+
+        Returns:
+            cld_features (numpy array): Flattened DCT-transformed features for the color layout descriptor.
+        """
+        ycrcb_image = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)
+        if mask is not None:
+            masked_image = cv2.bitwise_and(ycrcb_image, ycrcb_image, mask=mask)
+        else:
+            masked_image = ycrcb_image
+
+        resized_image = cv2.resize(masked_image, self.grid_size)
+        y, cr, cb = cv2.split(resized_image)
+        y_dct, cr_dct, cb_dct = self.apply_dct(y), self.apply_dct(cr), self.apply_dct(cb)
+        return np.concatenate([y_dct, cr_dct, cb_dct])
+
+    def apply_dct(self, channel):
+        """
+        Applies the Discrete Cosine Transform (DCT) to a color channel and returns the low-frequency coefficients.
+
+        Args:
+            channel (numpy array): A single color channel.
+
+        Returns:
+            dct_coeffs (numpy array): Flattened DCT coefficients (low-frequency components).
+        """
+        dct_coeffs = dct(dct(channel, axis=0, norm='ortho'), axis=1, norm='ortho')
+        return dct_coeffs[:3, :3].flatten()
+
+    def extract(self, image, mask=None):
+        """
+        Extracts all color descriptors from the image with an optional mask.
+        Args:
+            image (numpy array): The input image.
+            mask (numpy array, optional): Binary mask to apply to the image.
+
+        Returns:
+            features (numpy array): Concatenated feature vector for all color descriptors.
+        """
+        # scalable_color_features = self.scalable_color_descriptor(image, mask)
+        # color_structure_features = self.color_structure_descriptor(image, mask)
+        dominant_color_features = self.dominant_color_descriptor(image, mask)
+        color_layout_features = self.color_layout_descriptor(image, mask)
+
+        # Concatenate all feature vectors into a single feature vector
+        features = np.concatenate([
+            dominant_color_features
+        ])
+        
+        return features

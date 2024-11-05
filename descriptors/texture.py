@@ -277,3 +277,153 @@ class GaborFilterDescriptor:
         # Generate the Gabor kernel
         kernel = cv2.getGaborKernel((kernel_size, kernel_size), sigma, theta, 1.0/frequency, gamma, psi, ktype=cv2.CV_32F)
         return kernel
+    
+
+    ##############################Sumeet_Update############################################
+import cv2
+import numpy as np
+from skimage.feature import graycomatrix, graycoprops
+
+class TextureDescriptor_update:
+    def __init__(self, distances=[1], angles=[0, np.pi/4, np.pi/2, 3*np.pi/4], levels=8, grid_size=(4, 4)):
+        """
+        Initializes the TextureDescriptor with parameters for texture feature extraction.
+
+        Args:
+            distances (list): List of distances for GLCM computation.
+            angles (list): List of angles for GLCM computation.
+            levels (int): Number of quantization levels for GLCM.
+            grid_size (tuple): Number of grids (rows, columns) for grid-based extraction.
+        """
+        self.distances = distances
+        self.angles = angles
+        self.levels = levels
+        self.grid_size = grid_size
+
+    def texture_browsing_descriptor(self, gray_image, mask=None):
+        """
+        Extracts texture features like coarseness, directionality, and regularity.
+
+        Args:
+            gray_image (numpy array): Grayscale input image.
+            mask (numpy array, optional): Binary mask to apply to the image.
+
+        Returns:
+            texture_features (numpy array): Array of coarseness, directionality, and regularity features.
+        """
+        # Normalize the image to the range [0, self.levels - 1]
+        gray_image = np.floor(gray_image / gray_image.max() * (self.levels - 1)).astype(np.uint8)
+
+        # Apply mask by setting all pixels outside the mask to zero
+        if mask is not None:
+            gray_image = gray_image * (mask > 0)
+
+        # Calculate GLCM matrix
+        glcm = graycomatrix(gray_image, distances=self.distances, angles=self.angles,
+                            levels=self.levels, symmetric=True, normed=True)
+        
+        # Extract texture properties
+        coarseness = graycoprops(glcm, 'contrast').mean()
+        directionality = graycoprops(glcm, 'correlation').mean()
+        regularity = graycoprops(glcm, 'homogeneity').mean()
+
+        texture_features = np.array([coarseness, directionality, regularity])
+        return texture_features
+
+
+    def homogeneous_texture_descriptor(self, gray_image, mask=None):
+        """
+        Extracts homogeneous texture features based on spatial-frequency analysis.
+
+        Args:
+            gray_image (numpy array): Grayscale input image.
+            mask (numpy array, optional): Binary mask to apply to the image.
+
+        Returns:
+            htd_features (numpy array): Array of texture energy values in different frequency bands.
+        """
+        # Define Gabor filters for different orientations and scales
+        num_orientations = 4
+        num_scales = 5
+        htd_features = []
+
+        for scale in range(num_scales):
+            for orientation in range(num_orientations):
+                # Create Gabor kernel for specific scale and orientation
+                theta = orientation * np.pi / num_orientations
+                kernel = cv2.getGaborKernel((9, 9), sigma=4.0, theta=theta, lambd=10.0, gamma=0.5)
+                filtered = cv2.filter2D(gray_image, cv2.CV_32F, kernel)
+
+                # Apply mask if provided
+                if mask is not None:
+                    filtered = filtered[mask > 0]
+
+                # Calculate energy for this scale and orientation
+                energy = np.sqrt((filtered ** 2).mean())
+                htd_features.append(energy)
+
+        return np.array(htd_features)
+
+    def edge_histogram_descriptor(self, gray_image, mask=None):
+        """
+        Computes the edge histogram descriptor by analyzing the distribution of edges.
+
+        Args:
+            gray_image (numpy array): Grayscale input image.
+            mask (numpy array, optional): Binary mask to apply to the image.
+
+        Returns:
+            edge_hist (numpy array): Normalized histogram of edge directions.
+        """
+        # Apply Sobel filters to get edges in different directions
+        sobel_x = cv2.Sobel(gray_image, cv2.CV_64F, 1, 0, ksize=3)
+        sobel_y = cv2.Sobel(gray_image, cv2.CV_64F, 0, 1, ksize=3)
+
+        # Calculate edge magnitudes and directions
+        magnitude = cv2.magnitude(sobel_x, sobel_y)
+        angle = cv2.phase(sobel_x, sobel_y, angleInDegrees=True)
+
+        # Quantize directions (e.g., 4 main directions: horizontal, vertical, diagonal, anti-diagonal)
+        angle_bins = np.digitize(angle, bins=[45, 90, 135, 180])  # 4 bins for directions
+        edge_hist = np.zeros(4)
+
+        # Count edge occurrences per direction in the masked region
+        if mask is not None:
+            for i in range(4):
+                edge_hist[i] = np.sum((angle_bins == i + 1) & (mask > 0))
+        else:
+            for i in range(4):
+                edge_hist[i] = np.sum(angle_bins == i + 1)
+
+        # Normalize histogram
+        edge_hist /= edge_hist.sum()
+        return edge_hist
+
+    def extract(self, image, mask=None):
+        """
+        Extracts all texture descriptors from the image with an optional mask.
+
+        Args:
+            image (numpy array): Input grayscale image.
+            mask (numpy array, optional): Binary mask to apply to the image.
+
+        Returns:
+            features (numpy array): Concatenated feature vector for all texture descriptors.
+        """
+        # Convert to grayscale if the image is not already
+        gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
+
+        # Extract texture features
+        texture_browsing_features = self.texture_browsing_descriptor(gray_image, mask)
+        htd_features = self.homogeneous_texture_descriptor(gray_image, mask)
+        edge_histogram_features = self.edge_histogram_descriptor(gray_image, mask)
+
+        # Concatenate all feature vectors into a single feature vector
+        features = np.concatenate([
+            texture_browsing_features,
+            htd_features,
+            edge_histogram_features
+        ])
+        
+        return features
+
