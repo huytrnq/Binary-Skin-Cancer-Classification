@@ -21,9 +21,15 @@ The dataset includes dermoscopic images in JPEG format with a distribution that 
 - BCN_20000 Dataset (Hospital Clínic de Barcelona)
 - MSK Dataset (ISBI 2017)
 
-The dataset consists of more than 15,000 images for binary classification and around 6,000 images for three classes classification. 
-
-![Data Sample](./images/samples.png)
+The dataset consists of more than 15,000 images for binary classification and around 6,000 images for three classes classification. Data Distribution of two and three classes classification is shown below:
+    ![Binary Classdistribution](./images/two_class_distribution.png)
+    <p align="center">
+        *Distribution of binary classes in the dataset.*
+    </p>
+    ![Three Classdistribution](./images/three_class_distribution.png)
+    <p align="center">
+        *Distribution of three classes in the dataset.*
+    </p>
 
 # Data Preprocessing
 
@@ -109,8 +115,8 @@ The model is evaluated on a validation set using both binary and multi-class met
 
 - The best model for binary classification is the ensemble model with an accuracy of 86.11%.
 - The best model for three classes classification is the XgBoost model with an kappa score of 80.47%.
-- Results on test set
-    
+- Results on test set: 6 341 images for binary classification and 2 122 images for three classes classification.
+
    | Binary Classification | Three Classes Classification |
     |------------------------|-------------------------------|
     | Accuracy: 0.854        | Kappa score: 0.77            |
