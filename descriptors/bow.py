@@ -6,7 +6,7 @@ import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import confusion_matrix, classification_report
+from sklearn.metrics import confusion_matrix, classification_report, f1_score
 
 class MultifeatureBoW:
     def __init__(self, vocab_size=100, descriptors=[], classifier=None):
@@ -154,4 +154,4 @@ class MultifeatureBoW:
         print("Evaluating...")
         predictions = self.predict(dataloader)
         labels = np.array([label for _, label, mask, _ in dataloader])
-        return classification_report(labels, predictions, target_names=class_names), confusion_matrix(labels, predictions)
+        return predictions, labels

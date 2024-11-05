@@ -62,6 +62,52 @@ class ColorDescriptor:
                 features.extend(hist)
 
         return features
+    
+    def visualize(self, image, mask=None):
+        """
+        Visualizes color histograms for each HSV channel and each grid cell.
+        
+        Args:
+            image (numpy array): The input image.
+            mask (numpy array): Optional mask to apply to each grid cell.
+        """
+        # Convert the image to HSV color space
+        hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        
+        # Get image dimensions and calculate grid cell size
+        h, w = hsv_image.shape[:2]
+        cell_h, cell_w = h // self.grid_y, w // self.grid_x
+
+        # Define the channel names for HSV
+        channel_names = ["Hue", "Saturation", "Value"]
+
+        # Loop through each grid cell and plot histograms for each channel
+        fig, axs = plt.subplots(self.grid_y, self.grid_x, figsize=(self.grid_x * 4, self.grid_y * 4))
+        fig.suptitle("HSV Histograms for Each Grid Cell", fontsize=16)
+
+        for row in range(self.grid_y):
+            for col in range(self.grid_x):
+                # Define the region for the current grid cell
+                x_start, x_end = col * cell_w, (col + 1) * cell_w
+                y_start, y_end = row * cell_h, (row + 1) * cell_h
+
+                # Extract the cell from the HSV image
+                cell = hsv_image[y_start:y_end, x_start:x_end]
+
+                # Apply mask if provided, specific to the grid cell
+                cell_mask = mask[y_start:y_end, x_start:x_end] if mask is not None else None
+
+                # Plot histograms for each channel
+                for i, channel_name in enumerate(channel_names):
+                    hist = cv2.calcHist([cell], [i], cell_mask, [self.bins[i]], [0, 180] if i == 0 else [0, 256])
+                    hist = cv2.normalize(hist, hist).flatten()
+                    
+                    axs[row, col].plot(hist, label=channel_name)
+                    axs[row, col].set_title(f"Cell [{row+1}, {col+1}]")
+                    axs[row, col].legend()
+
+        plt.tight_layout(rect=[0, 0, 1, 0.96])  # Adjust layout for the main title
+        plt.show()
 
 
 class ColorLayoutDescriptor:
