@@ -35,7 +35,7 @@ The dataset consists of more than 15,000 images for binary classification and ar
     - [x] Color Histogram
     - [x] Local Binary Pattern
     - [x] Gray Level Co-occurrence Matrix
-    - [x] Histogram of Oriented Gradients
+    - [x] Intensity-base features
     - [x] Bag of Visual Words
 - [x] Model
     - [x] Xgboost
