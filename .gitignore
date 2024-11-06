@@ -4,6 +4,8 @@ features/
 experiments/
 BinaryClass copy 2.ipynb
 BinaryClass copy.ipynb
+.vscode/
+.DS_Store
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
