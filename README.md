@@ -1,4 +1,4 @@
-# Cancer Classification
+# Skin Lesion Classification
 This project is a binary classification task to classify skin lesion, which is part of the course project for the Computer Aid Diagnosis course at the University of Girona.
 
 # Table of Contents
