@@ -44,7 +44,7 @@ The dataset consists of more than 15,000 images for binary classification and ar
     - [x] Xgboost
 - [x] Training 
 - [x] Evaluation
-- [x] Results (Wait for the final results)
+- [x] Results
 
 
 # Pipeline
@@ -116,4 +116,4 @@ The model is evaluated on a validation set using both binary and multi-class met
 
    | Binary Classification | Three Classes Classification |
     |------------------------|-------------------------------|
-    | Accuracy: 0.854        | Kappa score: 0.77            |
+    | Accuracy: 0.856        | Kappa score: 0.773            |
